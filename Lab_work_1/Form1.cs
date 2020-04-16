@@ -142,5 +142,125 @@ namespace Lab_work_1
             Filters filter = new SobelFilter();
             backgroundWorker1.RunWorkerAsync(filter);
         }
+
+        private void увеличениеЯркостиToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            Filters filter = new IncreaseBrightness();
+            backgroundWorker1.RunWorkerAsync(filter);
+        }
+
+        private void коррекцияСОпорнымЦветомToolStripMenuItem_Click_1(object sender, EventArgs e)
+        {
+            Filters filter = new CorrectionWithReferenceColor();
+            backgroundWorker1.RunWorkerAsync(filter);
+        }
+
+        private void светящиесяКраяToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            Filters filter = new MedianFilter();
+            backgroundWorker1.RunWorkerAsync(filter);
+
+            while (backgroundWorker1.IsBusy)
+            {
+                Thread.Sleep(200);
+                Application.DoEvents();
+            }
+
+            Filters filter2 = new BorderSelectionFilter();
+            backgroundWorker1.RunWorkerAsync(filter2);
+
+            while (backgroundWorker1.IsBusy)
+            {
+                Thread.Sleep(400);
+                Application.DoEvents();
+            }
+
+            Filters filter3 = new MaxFilter();
+            backgroundWorker1.RunWorkerAsync(filter3);
+        }
+
+        private void выделениеГраницToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            Filters filter = new BorderSelectionFilter();
+            backgroundWorker1.RunWorkerAsync(filter);
+        }
+
+        private void тиснениеToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            Filters filter = new StampingFilter();
+            backgroundWorker1.RunWorkerAsync(filter);
+        }
+
+        private void линейноеРастяжениеГистограммыToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            Filters filter = new LinearStretchingHistogram();
+            backgroundWorker1.RunWorkerAsync(filter);
+        }
+
+        private void эффектСтеклаToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            Filters filter = new GlassFilter();
+            backgroundWorker1.RunWorkerAsync(filter);
+        }
+
+        private void переводВБинарноеToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            Filters filter = new BinaryFilter();
+            backgroundWorker1.RunWorkerAsync(filter);
+        }
+
+        private void расширениеToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            Filters filter = new Dilation(StructElem);
+            backgroundWorker1.RunWorkerAsync(filter);
+        }
+
+        private void сужениеToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            Filters filter = new Erosion(StructElem);
+            backgroundWorker1.RunWorkerAsync(filter);
+        }
+
+        private void открытиеToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            Filters filter = new Opening();
+            backgroundWorker1.RunWorkerAsync(filter);
+        }
+
+        private void сохранитьToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            if (pictureBox1.Image != null)
+            {
+                SaveFileDialog dialog = new SaveFileDialog();
+                dialog.Title = "Сохранить картинку как...";
+                dialog.OverwritePrompt = true;
+                dialog.CheckPathExists = true;
+                dialog.Filter = "Image Files(*.BMP)|*.BMP|Image Files(*.JPG)|*.JPG|Image Files(*.GIF)|*.GIF|Image Files(*.PNG)|*.PNG|All files (*.*)|*.*";
+                dialog.ShowHelp = true;
+                if (dialog.ShowDialog() == DialogResult.OK)
+                {
+                    try
+                    {
+                        image.Save(dialog.FileName, System.Drawing.Imaging.ImageFormat.Jpeg);
+                    }
+                    catch
+                    {
+                        MessageBox.Show("Невозможно сохранить изображение", "Ошибка",
+                        MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    }
+                }
+            }
+        }
+
+        private void задатьСтруктурныйЭлементToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+
+            Form2 form2 = new Form2();
+            form2.ShowDialog();
+            for (int i = 0; i < 3; i++)
+                for (int j = 0; j < 3; j++)
+                    StructElem[i, j] = form2.StructElem[i, j];
+
+        }
     }
 }

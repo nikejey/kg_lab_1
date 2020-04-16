@@ -300,7 +300,146 @@ namespace Lab_work_1
             Color resultColor = Color.FromArgb(local_R[ind_median], local_G[ind_median], local_B[ind_median]);
             return resultColor;
         }
+
     }
+
+    //увеличение яркости
+
+    class IncreaseBrightness : Filters
+    {
+        protected override Color calculateNewPixelColor(Bitmap sourceImage, int x, int y)
+        {
+            Color sourceColor = sourceImage.GetPixel(x, y);
+            Color resultColor = Color.FromArgb(Clamp(sourceColor.R + 10, 0, 255),
+                                               Clamp(sourceColor.G + 10, 0, 255),
+                                               Clamp(sourceColor.B + 10, 0, 255));
+            return resultColor;
+        }
+    }
+
+    //коррекция с опорным цветом
+
+    class CorrectionWithReferenceColor : Filters
+    {
+        protected override Color calculateNewPixelColor(Bitmap sourceImage, int x, int y)
+        {
+            return sourceImage.GetPixel(x, y);
+        }
+
+        public override Bitmap processImage(Bitmap sourceImage, BackgroundWorker worker)
+        {
+            Bitmap resultImage = new Bitmap(sourceImage.Width, sourceImage.Height);
+
+            double Rsrc = 124, Gsrc = 149, Bsrc = 171;  
+
+            for (int i = 0; i < sourceImage.Width; i++)
+            {
+                worker.ReportProgress((int)((float)i / sourceImage.Width * 100));
+                if (worker.CancellationPending)
+                    return null;
+                for (int j = 0; j < sourceImage.Height; j++)
+                {
+                    int newR = Clamp((int)(calculateNewPixelColor(sourceImage, i, j).R * (255 - Math.Abs(Rsrc - calculateNewPixelColor(sourceImage, i, j).R)) / Rsrc), 0, 255);
+                    int newG = Clamp((int)(calculateNewPixelColor(sourceImage, i, j).G * (255 - Math.Abs(Gsrc - calculateNewPixelColor(sourceImage, i, j).G)) / Gsrc), 0, 255);
+                    int newB = Clamp((int)(calculateNewPixelColor(sourceImage, i, j).B * (255 - Math.Abs(Bsrc - calculateNewPixelColor(sourceImage, i, j).B)) / Bsrc), 0, 255);
+                    resultImage.SetPixel(i, j, Color.FromArgb(newR, newG, newB));
+                }
+            }
+            return resultImage;
+        }
+    }
+
+    //линейное растяжение гистограммы
+
+    class LinearStretchingHistogram : Filters
+    {
+        protected override Color calculateNewPixelColor(Bitmap sourceImage, int x, int y)
+        {
+            return sourceImage.GetPixel(x, y);
+        }
+        public override Bitmap processImage(Bitmap sourceImage, BackgroundWorker worker)
+        {
+            Bitmap result = new Bitmap(sourceImage.Width, sourceImage.Height);
+            int XminR = 0, XmaxR = 0, XmaxG = 0, XminG = 0, XmaxB = 0, XminB = 0;
+            double progress = 0.0;
+
+            for (int i = 0; i < sourceImage.Width; i++, progress += 0.5)
+            {
+                worker.ReportProgress((int)((float)progress / sourceImage.Width * 100));
+                if (worker.CancellationPending)
+                    return null;
+                for (int j = 0; j < sourceImage.Height; j++)
+                {
+                    Color tmp = sourceImage.GetPixel(i, j);
+                    if (XminR > tmp.R)
+                        XminR = tmp.R;
+
+                    if (XmaxR < tmp.R)
+                        XmaxR = tmp.R;
+
+                    if (XminG > tmp.G)
+                        XminG = tmp.G;
+
+                    if (XmaxG < tmp.G)
+                        XmaxG = tmp.G;
+
+                    if (XminB > tmp.B)
+                        XminB = tmp.B;
+
+                    if (XmaxB < tmp.B)
+                        XmaxB = tmp.B;
+                }
+            }
+            for (int i = 0; i < sourceImage.Width; i++, progress += 0.5)
+            {
+                worker.ReportProgress((int)((float)progress / sourceImage.Width * 100));
+                if (worker.CancellationPending)
+                    return null;
+                for (int j = 0; j < sourceImage.Height; j++)
+                {
+                    int R = sourceImage.GetPixel(i, j).R;
+                    int G = sourceImage.GetPixel(i, j).G;
+                    int B = sourceImage.GetPixel(i, j).B;
+                    result.SetPixel(i, j, Color.FromArgb(Clamp(Clamp(((255 * (R - XminR)) / (XmaxR - XminR)), 0, 255) + R, 0, 255),
+                                                         Clamp(Clamp(((255 * (G - XminR)) / (XmaxG - XminG)), 0, 255) + G, 0, 255),
+                                                         Clamp(Clamp(((255 * (B - XminR)) / (XmaxB - XminB)), 0, 255) + B, 0, 255)));
+                }
+            }
+            return result;
+        }
+    }
+
+    //эффект стекла
+
+    class GlassFilter : Filters
+    {
+        private Random rand = new Random();
+        protected override Color calculateNewPixelColor(Bitmap sourceImage, int x, int y)
+        {
+            int k, l;
+            k = Clamp((int)(x + (rand.NextDouble() - 0.5) * 10), 0, sourceImage.Width - 1);
+            l = Clamp((int)(y + (rand.NextDouble() - 0.5) * 10), 0, sourceImage.Height - 1);
+            Color sourceColor = sourceImage.GetPixel(k, l);
+            Color resultColor = Color.FromArgb(sourceColor.R, sourceColor.G, sourceColor.B);
+
+            return resultColor;
+        }
+    }
+
+    //перевод в бинарное
+
+    class BinaryFilter : Filters
+    {
+        protected override Color calculateNewPixelColor(Bitmap sourceImage, int x, int y)
+        {
+            Color s = sourceImage.GetPixel(x, y);
+            if (s.R < 127 && s.G < 127 && s.B < 127)
+                return Color.FromArgb(0, 0, 0);
+            else
+                return Color.FromArgb(255, 255, 255);
+        }
+    }
+
 
 
     //Матричные фильтры
@@ -493,6 +632,82 @@ namespace Lab_work_1
         }
     }
 
+    class BorderSelectionFilter : MatrixFilter
+    {
+        protected int[,] X = null;
+        protected int[,] Y = null;
+        public BorderSelectionFilter()
+        {
+            X = new int[3, 3] { { -1, 0, 1 }, { -1, 0, 1 }, { -1, 0, 1 } };
+            Y = new int[3, 3] { { -1, -1, -1 }, { 0, 0, 0 }, { 1, 1, 1 } };
+        }
+
+        protected override Color calculateNewPixelColor(Bitmap sourceImage, int x, int y)
+        {
+            int radiusX = 1;
+            int radiusY = 1;
+            float resultRX = 0; float resultGX = 0; float resultBX = 0;
+            float resultRY = 0; float resultGY = 0; float resultBY = 0;
+            for (int l = -radiusY; l <= radiusY; l++)
+                for (int k = -radiusX; k <= radiusX; k++)
+                {
+                    int idX = Clamp(x + k, 0, sourceImage.Width - 1);
+                    int idY = Clamp(y + l, 0, sourceImage.Height - 1);
+                    Color NeighbourColor = sourceImage.GetPixel(idX, idY);
+                    resultRX += NeighbourColor.R * X[k + radiusX, l + radiusY];
+                    resultGX += NeighbourColor.G * X[k + radiusX, l + radiusY];
+                    resultBX += NeighbourColor.B * X[k + radiusX, l + radiusY];
+                    resultRY += NeighbourColor.R * Y[k + radiusX, l + radiusY];
+                    resultGY += NeighbourColor.G * Y[k + radiusX, l + radiusY];
+                    resultBY += NeighbourColor.B * Y[k + radiusX, l + radiusY];
+                }
+            int resultR = Clamp((int)Math.Sqrt(Math.Pow(resultRX, 2.0) + Math.Pow(resultRY, 2.0)), 0, 255);
+            int resultG = Clamp((int)Math.Sqrt(Math.Pow(resultGX, 2.0) + Math.Pow(resultGY, 2.0)), 0, 255);
+            int resultB = Clamp((int)Math.Sqrt(Math.Pow(resultBX, 2.0) + Math.Pow(resultBY, 2.0)), 0, 255);
+            return Color.FromArgb(Clamp(resultR, 0, 255), Clamp(resultG, 0, 255), Clamp(resultB, 0, 255));
+        }
+
+    }
+
+    class StampingFilter : MatrixFilter
+    {
+        public StampingFilter()
+        {
+            createStampingKernel();
+        }
+        protected override Color calculateNewPixelColor(Bitmap sourceImage, int x, int y)
+        {
+            int radiusX = kernel.GetLength(0) / 2;
+            int radiusY = kernel.GetLength(1) / 2;
+            float resultR = 0;
+            float resultG = 0;
+            float resultB = 0;
+            for (int l = -radiusY; l <= radiusY; l++)
+                for (int k = -radiusX; k <= radiusX; k++)
+                {
+                    int idX = Clamp(x + k, 0, sourceImage.Width - 1);
+                    int idY = Clamp(y + l, 0, sourceImage.Height - 1);
+                    Color neighborColor = sourceImage.GetPixel(idX, idY);
+                    resultR += neighborColor.R * kernel[k + radiusX, l + radiusY];
+                    resultG += neighborColor.G * kernel[k + radiusX, l + radiusY];
+                    resultB += neighborColor.B * kernel[k + radiusX, l + radiusY];
+                }
+            return Color.FromArgb(Clamp((int)resultR + 128, 0, 255), Clamp((int)resultG + 128, 0, 255), Clamp((int)resultB + 128, 0, 255));
+        }
+        public void createStampingKernel()
+        {
+            kernel = new float[3, 3];
+            kernel[0, 0] = 0;
+            kernel[0, 1] = 1;
+            kernel[0, 2] = 0;
+            kernel[1, 0] = 1;
+            kernel[1, 1] = 0;
+            kernel[1, 2] = -1;
+            kernel[2, 0] = 0;
+            kernel[2, 1] = -1;
+            kernel[2, 2] = 0;
+        }
+    }
 }
 
 
